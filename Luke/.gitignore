@@ -1,0 +1,5 @@
+*__pycache__
+*.gzip
+*.csv
+*.txt
+*.DS_Store
