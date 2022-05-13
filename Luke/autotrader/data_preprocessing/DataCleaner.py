@@ -3,7 +3,7 @@ import statistics
 from scipy import stats
 import pandas as pd
 import category_encoders as ce
-from math import radians, cos, sin, asin, sqrt
+from math import isnan, radians, cos, sin, asin, sqrt
 import numpy as np
 import pgeocode
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
@@ -305,7 +305,7 @@ class DataCleaner():
 
     def calculate_vehicle_age(self):
         self.df['year_of_scrape'] = [int(x[-4:]) for x in self.df.todaysdate]
-        self.df['vehicle_age'] = self.df.year_of_scrape - self.df.year_of_manufacture
+        self.df['vehicle_age'] = [x - y  if np.isnan(x, where=False) and np.isnan(y, where=False) else 1000000 for x, y in zip(self.df.year_of_scrape, self.df.year_of_manufacture)]
 
     def add_mileage_deviation(self):
         self.df['mileage_deviation_encoded'] = [self._encode_mileage_deviation(x) for x in self.df.mileageDeviation]
@@ -407,7 +407,7 @@ class DataCleaner():
 
         self.mileage_to_integer()
         self.count_images()
-        self.extract_lat_long_from_postcode()
+        # self.extract_lat_long_from_postcode() # This introduced too many nulls that are difficult to impute
         self.load_sentiment_from_file() # temporary to save time
         
         self.group_care_makes()
@@ -418,7 +418,7 @@ class DataCleaner():
         self.group_engine_size()
         self.group_co2()
 
-        self.df = self.encode_with_hashing(self.df, 'model', n_components=16)
+        self.df = self.encode_with_hashing(self.df, 'model', n_components=16) # takes about 30s
 
 
     def drop_columns(self, df=None):
@@ -453,8 +453,7 @@ class DataCleaner():
         col_mapping = self._get_ordinal(col, X_train, y_train)
         self._map_to_ordinal(col, col_mapping, df=X_train)
         self._map_to_ordinal(col, col_mapping, df=X_test)
-        X_train.drop(columns=[col], inplace=True)
-        X_test.drop(columns=[col], inplace=True)
+
 
     def convert_columns_to_ordinal(self, columns, X_train, y_train, X_test):
         for col in columns:
