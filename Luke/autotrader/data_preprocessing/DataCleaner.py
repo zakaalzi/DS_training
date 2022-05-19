@@ -18,9 +18,17 @@ class DataCleaner():
             self.df = df
         self.sid_obj = SentimentIntensityAnalyzer()
         self.original_columns = df.columns
+        self.outlier_df = None
+        self.original_size = len(df)
 
     def get_df(self):
         return self.df
+
+    def get_outlier_df(self):
+        if self.outlier_df is not None:
+            return self.outlier_df
+        else:
+            print("Outlier DF not defined yet")
     
     def set_df(self, new_df):
         self.df = new_df
@@ -252,21 +260,22 @@ class DataCleaner():
             return 0
 
 
+    @staticmethod
+    def remove_skewed_outliers(df, col):
+        """
+        Remove based on IQR range
+        - A multiplier of 1.5 represents a +- 2.7 SD. +- 3 SD for a Gaussian is 99% of the data 
+        """
+        x = np.array(df[col])
+        q3, q1 = np.percentile(x, [75 ,25])
+        iqr_const = (q3 - q1) * 1.5
+        upper_bound = q3 + iqr_const
+        lower_bound = q1 - iqr_const
 
-
-    # def remove_skewed_outliers(self, col):
-    #     """
-    #     Remove based on IQR range
-    #     - A multiplier of 1.5 represents a +- 2.7 SD. +- 3 SD for a Gaussian is 99% of the data 
-    #     """
-    #     x = np.array(self.df[col])
-    #     q3, q1 = np.percentile(x, [75 ,25])
-    #     iqr_const = (q3 - q1) * 1.5
-    #     upper_bound = q3 + iqr_const
-    #     lower_bound = q1 - iqr_const
-
-    #     mask = (x < lower_bound) & (x > upper_bound)
-    #     return self.df[mask]
+        mask = (x >= lower_bound) & (x <= upper_bound)
+        inliers = df[mask]
+        outliers = df[~mask]
+        return inliers, outliers
 
 
     # Main Functions
@@ -419,6 +428,18 @@ class DataCleaner():
         self.group_co2()
 
         self.df = self.encode_with_hashing(self.df, 'model', n_components=16) # takes about 30s
+        self.outlier_df = self.df.loc[self.df['price'] > 100000]
+        self.df = self.df.loc[self.df['price'] <= 100000] # normal data under 100k
+        self.outlier_df, extreme_outliers = self.remove_skewed_outliers(self.outlier_df, 'price')
+        num_of_extreme_outliers = len(extreme_outliers)
+        num_of_outliers = len(self.outlier_df)
+
+        print(f"Number of outliers: {num_of_outliers}")
+        print(f"Percentage of tota ingest dataset: {(num_of_outliers / self.original_size) * 100:.2f}%")
+        print(f"Number of extreme outliers removed: {num_of_extreme_outliers}")
+        print(f"Percentage of tota ingest dataset: {(num_of_extreme_outliers / self.original_size) * 100:.2f}%")
+        
+        
 
 
     def drop_columns(self, df=None):
