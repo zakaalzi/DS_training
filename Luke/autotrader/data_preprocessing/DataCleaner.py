@@ -7,6 +7,7 @@ from math import isnan, radians, cos, sin, asin, sqrt
 import numpy as np
 import pgeocode
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from datetime import datetime
 
 
 class DataCleaner:
@@ -317,10 +318,10 @@ class DataCleaner:
 
     def calculate_vehicle_age(self):
         self.df["year_of_scrape"] = [int(x[-4:]) for x in self.df.todaysdate]
-        self.df["vehicle_age"] = [
-            x - y if np.isnan(x, where=False) and np.isnan(y, where=False) else 1000000
-            for x, y in zip(self.df.year_of_scrape, self.df.year_of_manufacture)
-        ]
+        todays_date = datetime.now().year
+        self.df['vehicle_age'] = [todays_date - x for x in self.df.year_of_manufacture]
+        # Fill nans with large number because not knowing vehicle age is likely bad
+        self.df['vehicle_age'].fillna(value=1000, inplace=True) 
 
     def add_mileage_deviation(self):
         self.df["mileage_deviation_encoded"] = [
